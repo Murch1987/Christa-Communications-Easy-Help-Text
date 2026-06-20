@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>EasyText – Guided Texting App</title>
+<style>
+  :root {
+    --sky: #4A90D9;
+    --sky-dark: #2C6FAB;
+    --green: #3DBF7A;
+    --green-dark: #2A9A5F;
+    --yellow: #FFD54F;
+    --red: #E05A5A;
+    --bg: #EDF4FB;
+    --card: #FFFFFF;
+    --text: #1A2B3C;
+    --muted: #7A94AA;
+    --highlight: #FFE066;
+    --radius: 18px;
+    --shadow: 0 4px 24px rgba(74,144,217,0.13);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 60px 0;
+  }
+  header {
+    width: 100%;
+    background: var(--sky);
+    color: white;
+    text-align: center;
+    padding: 18px 20px 14px;
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  header span { font-size: 1rem; display: block; font-weight: 400; opacity: 0.88; margin-top: 2px; }
+
+  .app {
+    width: 100%;
+    max-width: 520px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* Thread */
+  .thread {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-height: 160px;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bubble {
+    max-width: 82%;
+    padding: 13px 17px;
+    border-radius: 18px;
+    font-size: 1.15rem;
+    line-height: 1.55;
+    word-break: break-word;
+  }
+  .bubble.sent { background: var(--sky); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .bubble.received { background: #E8F0FE; color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
+  .bubble.received .word.reading { background: var(--highlight); border-radius: 4px; padding: 0 2px; }
+  .empty-thread { color: var(--muted); font-size: 1rem; text-align: center; margin: auto; padding: 20px 0; }
+
+  /* Status */
+  .status {
+    background: #E8F5E9;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 1rem;
+    color: #2E7D32;
+    font-weight: 600;
+    text-align: center;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Compose */
+  .compose-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .spoken-text {
+    background: #F0F7FF;
+    border: 2px solid var(--sky);
+    border-radius: 12px;
+    min-height: 60px;
+    padding: 13px 16px;
+    font-size: 1.18rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .spoken-text.empty { color: var(--muted); font-style: italic; }
+
+  /* Big mic button */
+  .mic-btn {
+    background: var(--sky);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 22px 28px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    box-shadow: 0 4px 20px rgba(74,144,217,0.4);
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .mic-btn:active { transform: scale(0.97); }
+  .mic-btn.recording { background: var(--red); }
+  .mic-btn.recording { animation: pulse-red 1.2s infinite; }
+  @keyframes pulse-red {
+    0%,100% { box-shadow: 0 0 0 0 rgba(224,90,90,0.5); }
+    50% { box-shadow: 0 0 0 20px rgba(224,90,90,0); }
+  }
+
+  /* Sound wave animation when recording */
+  .wave-container {
+    display: none;
+    align-items: center;
+    gap: 3px;
+    height: 28px;
+  }
+  .recording .wave-container { display: flex; }
+  .recording .mic-label-text { display: none; }
+  .wave-bar {
+    width: 4px;
+    background: white;
+    border-radius: 2px;
+    animation: wave 0.8s infinite ease-in-out;
+  }
+  .wave-bar:nth-child(1) { animation-delay: 0s; height: 10px; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; height: 18px; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; height: 26px; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; height: 18px; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; height: 10px; }
+  @keyframes wave {
+    0%,100% { transform: scaleY(0.5); opacity: 0.6; }
+    50% { transform: scaleY(1.3); opacity: 1; }
+  }
+
+  /* Hidden input trick for Safari voice input */
+  .safari-voice-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+  }
+
+  /* Keyboard */
+  .keyboard-area { display: flex; flex-direction: column; gap: 10px; }
+  .keyboard-hint {
+    background: #FFF9E6;
+    border: 2px solid var(--yellow);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 1.05rem;
+    color: #7A6000;
+    text-align: center;
+    font-weight: 600;
+  }
+  .keyboard-hint strong { font-size: 1.6rem; color: #B8860B; }
+  .word-progress {
+    text-align: center;
+    font-size: 1.2rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    font-weight: 700;
+    min-height: 28px;
+  }
+  .word-progress span.done { color: var(--green); }
+  .word-progress span.next { color: var(--sky); border-bottom: 3px solid var(--sky); }
+
+  .letter-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .letter-key {
+    width: 46px; height: 46px;
+    border-radius: 10px;
+    border: 2px solid #C5D8EE;
+    background: white;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .letter-key.active {
+    background: var(--yellow);
+    border-color: #E6B800;
+    color: #5A4000;
+    transform: scale(1.18);
+    box-shadow: 0 3px 12px rgba(255,213,79,0.7);
+    animation: bounce-key 0.45s infinite alternate;
+    z-index: 2;
+  }
+  @keyframes bounce-key { from { transform: scale(1.15); } to { transform: scale(1.22); } }
+  .letter-key.correct { background: var(--green); border-color: var(--green-dark); color: white; animation: none; transform: scale(1); }
+  .letter-key.disabled { opacity: 0.28; cursor: default; pointer-events: none; }
+
+  /* Send button */
+  .send-btn {
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 22px 36px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 5px 20px rgba(61,191,122,0.4);
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .send-btn.visible { display: flex; }
+  .send-btn.shaking { animation: shake 0.5s infinite; }
+  @keyframes shake {
+    0%,100% { transform: scale(1.08) rotate(0deg); }
+    20% { transform: scale(1.1) rotate(-3deg); }
+    40% { transform: scale(1.1) rotate(3deg); }
+    60% { transform: scale(1.1) rotate(-2deg); }
+    80% { transform: scale(1.1) rotate(2deg); }
+  }
+
+  /* Read again */
+  .read-again-panel {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    text-align: center;
+  }
+  .read-again-panel.visible { display: flex; }
+  .read-again-panel p { font-size: 1.15rem; color: var(--text); font-weight: 600; }
+  .again-btn {
+    background: var(--sky);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 16px 36px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .again-btn.shaking { animation: shake 0.5s infinite; transform: scale(1.1); }
+  .dog-no-btn {
+    background: none;
+    border: 3px solid var(--red);
+    border-radius: 20px;
+    padding: 12px 28px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--red);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dog-no-btn.shaking { animation: dog-shake 0.4s infinite; }
+  @keyframes dog-shake { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+  .dog-svg { width: 90px; height: 90px; }
+
+  .demo-receive {
+    background: #F3E5F5;
+    border: 2px solid #9C27B0;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 1rem;
+    color: #6A0080;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  /* Permission modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .modal h2 { font-size: 1.4rem; color: var(--text); }
+  .modal p { font-size: 1rem; color: var(--muted); line-height: 1.6; }
+  .modal-steps { text-align: left; font-size: 0.97rem; color: var(--text); line-height: 2; }
+  .modal-btn {
+    background: var(--sky);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  📱 EasyText
+  <span>Guided Texting — Step by Step</span>
+</header>
+
+<div class="app">
+
+  <div class="thread" id="thread">
+    <div class="empty-thread" id="emptyThread">Your messages will appear here</div>
+  </div>
+
+  <div class="status" id="status">Press the big microphone button to speak 🎤</div>
+
+  <div class="compose-card">
+    <div class="spoken-text empty" id="spokenDisplay">Your spoken message will appear here…</div>
+
+    <!-- Hidden input used to trigger Safari's native voice keyboard -->
+    <input
+      id="safariVoiceInput"
+      class="safari-voice-input"
+      type="text"
+      inputmode="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      aria-label="Voice input"
+    />
+
+    <button class="mic-btn" id="micBtn" onclick="handleMicTap()">
+      <span style="font-size:2rem;">🎤</span>
+      <span class="mic-label-text" id="micLabel">Tap to Speak</span>
+      <div class="wave-container">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <span style="margin-left:8px;font-size:1rem;">Listening…</span>
+      </div>
+    </button>
+
+    <!-- Keyboard -->
+    <div class="keyboard-area" id="keyboardArea" style="display:none;">
+      <div class="keyboard-hint">Press the letter: <strong id="nextLetterHint">?</strong></div>
+      <div class="word-progress" id="wordProgress"></div>
+      <div class="letter-row" id="row1"></div>
+      <div class="letter-row" id="row2"></div>
+      <div class="letter-row" id="row3"></div>
+    </div>
+
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">✅ SEND MESSAGE</button>
+  </div>
+
+  <!-- Read again panel -->
+  <div class="read-again-panel" id="readAgainPanel">
+    <p>Should I read the message again?</p>
+    <button class="again-btn shaking" onclick="readAgain()">🔁 Read Again</button>
+    <p style="font-size:0.9rem;color:var(--muted);">— or press the dog for No —</p>
+    <button class="dog-no-btn shaking" onclick="dismissReadAgain()">
+      <svg class="dog-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="50" cy="72" rx="24" ry="18" fill="#C8A97E"/>
+        <circle cx="50" cy="44" r="22" fill="#D4B896"/>
+        <ellipse cx="32" cy="34" rx="10" ry="14" fill="#A0785A" transform="rotate(-15,32,34)"/>
+        <ellipse cx="68" cy="34" rx="10" ry="14" fill="#A0785A" transform="rotate(15,68,34)"/>
+        <circle cx="43" cy="40" r="4" fill="#3A2510"/>
+        <circle cx="57" cy="40" r="4" fill="#3A2510"/>
+        <circle cx="44.5" cy="38.5" r="1.2" fill="white"/>
+        <circle cx="58.5" cy="38.5" r="1.2" fill="white"/>
+        <ellipse cx="50" cy="50" rx="5" ry="3.5" fill="#3A2510"/>
+        <path d="M45 54 Q50 58 55 54" stroke="#3A2510" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M74 72 Q92 60 88 48" stroke="#C8A97E" stroke-width="7" fill="none" stroke-linecap="round"/>
+        <circle cx="78" cy="22" r="16" fill="#E05A5A"/>
+        <text x="78" y="27" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="Arial">NO</text>
+      </svg>
+      No, don't read again
+    </button>
+  </div>
+
+  <button class="demo-receive" onclick="simulateReceive()">📩 Demo: Simulate Receiving a Message</button>
+</div>
+
+<!-- Permission help modal -->
+<div class="modal-overlay" id="permModal">
+  <div class="modal">
+    <h2>🎤 Allow Microphone</h2>
+    <p>To use your voice, follow these steps for your device:</p>
+    <div class="modal-steps" id="permSteps"></div>
+    <button class="modal-btn" onclick="closeModal()">Got It — Try Again</button>
+  </div>
+</div>
+
+<script>
+// ── Detect platform ────────────────────────────────────────────────────────
+const ua = navigator.userAgent;
+const isIOS = /iPad|iPhone|iPod/.test(ua);
+const isSafari = /^((?!chrome|android).)*safari/i.test(ua) || (isIOS && /WebKit/.test(ua));
+const isAndroid = /Android/.test(ua);
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+const ttsSupported = 'speechSynthesis' in window;
+
+// ── State ──────────────────────────────────────────────────────────────────
+let spokenSentence = '';
+let words = [], wordIdx = 0, letterIdx = 0, composedSoFar = '';
+let isRecording = false;
+let recognition = null;
+let safariInputTimer = null;
+
+const ROWS = ['QWERTYUIOP'.split(''), 'ASDFGHJKL'.split(''), 'ZXCVBNM'.split('')];
+const DEMO_MSGS = ["Hey are you there","Can you meet me at the park at three","I hope you are having a great day","Do not forget to bring your jacket tonight"];
+let demoIdx = 0;
+
+// ── TTS ────────────────────────────────────────────────────────────────────
+function speak(text, onEnd) {
+  if (!ttsSupported) { if (onEnd) setTimeout(onEnd, 800); return; }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.85; u.pitch = 1.05; u.volume = 1;
+  if (onEnd) u.onend = onEnd;
+  setTimeout(() => window.speechSynthesis.speak(u), 150);
+}
+
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+
+// ── Main mic tap handler — routes to correct method ───────────────────────
+function handleMicTap() {
+  if (isRecording) { stopAll(); return; }
+
+  if (isSafari || isIOS) {
+    startSafariVoice();
+  } else if (SpeechRecognitionAPI) {
+    startWebSpeech();
+  } else {
+    showPermModal();
+  }
+}
+
+// ── METHOD 1: Web Speech API (Chrome, Edge, Android) ──────────────────────
+function startWebSpeech() {
+  try { recognition = new SpeechRecognitionAPI(); } catch(e) { showPermModal(); return; }
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    isRecording = true;
+    setRecordingUI(true);
+    setStatus('🎙️ Listening… speak your message now!');
+  };
+
+  recognition.onresult = (e) => {
+    let t = '';
+    for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+    t = t.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+    spokenSentence = t;
+    showSpoken(t);
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'aborted') return;
+    isRecording = false;
+    setRecordingUI(false);
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+      showPermModal();
+    } else if (e.error === 'no-speech') {
+      setStatus('Nothing heard — tap the microphone and try again 🎤');
+      speak('I did not hear anything. Please try again.');
+    } else {
+      setStatus('Tap the microphone to try again 🎤');
+    }
+  };
+
+  recognition.onend = () => {
+    if (!isRecording) return;
+    isRecording = false;
+    setRecordingUI(false);
+    if (spokenSentence.trim()) {
+      setStatus('✅ Got it! Now press each highlighted letter.');
+      speak('Got it. Now begin texting. Press each highlighted letter.', beginTyping);
+    } else {
+      setStatus('Nothing heard — tap the microphone and try again 🎤');
+    }
+  };
+
+  try { recognition.start(); } catch(e) { setRecordingUI(false); showPermModal(); }
+}
+
+// ── METHOD 2: Safari / iOS — focus hidden input to trigger mic keyboard ────
+// On iOS Safari the user taps the mic key on the keyboard to dictate.
+// We focus a hidden input, wait for input, then grab the value.
+function startSafariVoice() {
+  const input = document.getElementById('safariVoiceInput');
+  input.value = '';
+  isRecording = true;
+  setRecordingUI(true);
+  setStatus('🎙️ Tap the 🎤 key on your keyboard to dictate, then tap Done');
+  speak('Tap the microphone key on your keyboard, speak your message, then tap Done.');
+
+  // Make input temporarily visible and focused so keyboard appears
+  input.style.position = 'fixed';
+  input.style.bottom = '20px';
+  input.style.left = '50%';
+  input.style.transform = 'translateX(-50%)';
+  input.style.width = '90vw';
+  input.style.height = '54px';
+  input.style.opacity = '1';
+  input.style.fontSize = '1.1rem';
+  input.style.padding = '10px 16px';
+  input.style.border = '3px solid #4A90D9';
+  input.style.borderRadius = '12px';
+  input.style.background = 'white';
+  input.style.zIndex = '999';
+  input.style.pointerEvents = 'auto';
+  input.placeholder = 'Speak using 🎤 key, then tap Done…';
+
+  setTimeout(() => { input.focus(); }, 100);
+
+  // Listen for when user taps Done / Return
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === 'Done') {
+      e.preventDefault();
+      finishSafariVoice();
+    }
+  };
+
+  // Also watch for blur (tapping Done hides keyboard and blurs)
+  input.onblur = () => {
+    setTimeout(() => {
+      if (isRecording) finishSafariVoice();
+    }, 300);
+  };
+}
+
+function finishSafariVoice() {
+  const input = document.getElementById('safariVoiceInput');
+  const val = input.value.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+  isRecording = false;
+  setRecordingUI(false);
+
+  // Hide the input again
+  input.style.position = 'absolute';
+  input.style.opacity = '0';
+  input.style.width = '1px';
+  input.style.height = '1px';
+  input.style.pointerEvents = 'none';
+  input.style.zIndex = '';
+  input.blur();
+
+  if (val) {
+    spokenSentence = val;
+    showSpoken(val);
+    setStatus('✅ Got it! Now press each highlighted letter.');
+    speak('Got it. Now begin texting. Press each highlighted letter.', beginTyping);
+  } else {
+    setStatus('Nothing captured — tap the microphone and try again 🎤');
+    speak('Nothing was captured. Please try again.');
+  }
+}
+
+function stopAll() {
+  isRecording = false;
+  setRecordingUI(false);
+  if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+  if (isSafari || isIOS) finishSafariVoice();
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function setRecordingUI(on) {
+  const btn = document.getElementById('micBtn');
+  const label = document.getElementById('micLabel');
+  if (on) {
+    btn.classList.add('recording');
+    label.textContent = 'Tap to Stop';
+  } else {
+    btn.classList.remove('recording');
+    label.textContent = 'Tap to Speak';
+  }
+}
+
+function showSpoken(text) {
+  const d = document.getElementById('spokenDisplay');
+  d.textContent = text;
+  d.classList.remove('empty');
+}
+
+// ── Typing flow ────────────────────────────────────────────────────────────
+function beginTyping() {
+  words = spokenSentence.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return;
+  wordIdx = 0; letterIdx = 0; composedSoFar = '';
+  document.getElementById('keyboardArea').style.display = 'block';
+  document.getElementById('sendBtn').classList.remove('visible','shaking');
+  buildKeyboard();
+  updateKeyboardHint();
+}
+
+function buildKeyboard() {
+  ['row1','row2','row3'].forEach((id, ri) => {
+    const row = document.getElementById(id);
+    row.innerHTML = '';
+    ROWS[ri].forEach(letter => {
+      const btn = document.createElement('button');
+      btn.className = 'letter-key disabled';
+      btn.textContent = letter;
+      btn.id = 'key-' + letter;
+      btn.addEventListener('click', () => pressLetter(letter));
+      row.appendChild(btn);
+    });
+  });
+}
+
+function updateKeyboardHint() {
+  if (wordIdx >= words.length) { showSendButton(); return; }
+  const word = words[wordIdx].toUpperCase();
+  const target = word[letterIdx];
+  document.getElementById('nextLetterHint').textContent = target;
+  const done = word.substring(0, letterIdx);
+  const rest = word.substring(letterIdx + 1);
+  document.getElementById('wordProgress').innerHTML =
+    `<span class="done">${done}</span><span class="next">${target}</span>${rest}`;
+  document.querySelectorAll('.letter-key').forEach(k => {
+    k.classList.remove('active','correct','disabled');
+    k.classList.add(k.textContent === target ? 'active' : 'disabled');
+  });
+  setStatus(`Press the letter: "${target}"   (word: ${words[wordIdx]})`);
+  speak(`Press the letter ${target}`);
+}
+
+function pressLetter(letter) {
+  if (wordIdx >= words.length) return;
+  const word = words[wordIdx].toUpperCase();
+  if (letter !== word[letterIdx]) { speak('Try again'); return; }
+  const keyEl = document.getElementById('key-' + letter);
+  if (keyEl) { keyEl.classList.remove('active','disabled'); keyEl.classList.add('correct'); }
+  letterIdx++;
+  if (letterIdx >= word.length) {
+    composedSoFar += words[wordIdx] + ' ';
+    wordIdx++; letterIdx = 0;
+    if (wordIdx >= words.length) {
+      document.getElementById('spokenDisplay').textContent = composedSoFar.trim();
+      setTimeout(showSendButton, 400);
+    } else {
+      speak(words[wordIdx - 1], () => setTimeout(updateKeyboardHint, 300));
+    }
+  } else {
+    setTimeout(updateKeyboardHint, 180);
+  }
+}
+
+// ── Send ───────────────────────────────────────────────────────────────────
+function showSendButton() {
+  document.getElementById('keyboardArea').style.display = 'none';
+  const sb = document.getElementById('sendBtn');
+  sb.classList.add('visible','shaking');
+  speak('If you want to send, press the send button. It is big and it is shaking.');
+  setStatus('🟢 Press the big shaking SEND button!');
+}
+
+function sendMessage() {
+  const msg = composedSoFar.trim() || spokenSentence.trim();
+  if (!msg) return;
+  addBubble(msg, 'sent');
+  speak('Message sent!');
+  setStatus('✅ Message sent!');
+  spokenSentence = ''; composedSoFar = ''; words = []; wordIdx = 0; letterIdx = 0;
+  const d = document.getElementById('spokenDisplay');
+  d.textContent = 'Your spoken message will appear here…';
+  d.classList.add('empty');
+  document.getElementById('sendBtn').classList.remove('visible','shaking');
+  document.getElementById('keyboardArea').style.display = 'none';
+  setStatus('Press the big microphone button to speak 🎤');
+}
+
+// ── Thread ─────────────────────────────────────────────────────────────────
+function addBubble(text, type) {
+  const thread = document.getElementById('thread');
+  document.getElementById('emptyThread')?.remove();
+  const div = document.createElement('div');
+  div.className = 'bubble ' + type;
+  if (type === 'received') {
+    const stamp = Date.now();
+    div.innerHTML = text.split(' ').map((w,i) => `<span class="word" id="rw${stamp}-${i}">${w} </span>`).join('');
+    div.dataset.stamp = stamp;
+  } else { div.textContent = text; }
+  thread.appendChild(div);
+  thread.scrollTop = thread.scrollHeight;
+  return div;
+}
+
+// ── Receive ────────────────────────────────────────────────────────────────
+function simulateReceive() {
+  const msg = DEMO_MSGS[demoIdx % DEMO_MSGS.length]; demoIdx++;
+  const bubble = addBubble(msg, 'received');
+  setStatus('📨 New message received!');
+  speak('You have a new message.', () => readBubble(bubble, msg));
+}
+
+function readBubble(bubble, text) {
+  const wordList = text.split(' ');
+  const stamp = bubble.dataset.stamp;
+  wordList.forEach((w, i) => {
+    setTimeout(() => {
+      bubble.querySelectorAll('.word').forEach(s => s.classList.remove('reading'));
+      const sp = document.getElementById(`rw${stamp}-${i}`);
+      if (sp) sp.classList.add('reading');
+      setStatus(`📖 Reading: "${w}"`);
+    }, i * 520);
+  });
+  if (ttsSupported) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.82;
+    u.onend = () => { bubble.querySelectorAll('.word').forEach(s => s.classList.remove('reading')); setTimeout(offerReadAgain, 500); };
+    setTimeout(() => window.speechSynthesis.speak(u), 150);
+  } else {
+    setTimeout(offerReadAgain, wordList.length * 520 + 500);
+  }
+  window._lastBubble = bubble; window._lastText = text;
+}
+
+function offerReadAgain() {
+  document.getElementById('readAgainPanel').classList.add('visible');
+  speak('Should I read the message again? Press the Again button that is shaking. Or press the dog shaking its head for No.');
+  setStatus('Should I read the message again?');
+}
+function readAgain() { document.getElementById('readAgainPanel').classList.remove('visible'); readBubble(window._lastBubble, window._lastText); }
+function dismissReadAgain() {
+  document.getElementById('readAgainPanel').classList.remove('visible');
+  speak('Okay. Press the microphone to speak your reply.');
+  setStatus('Press the big microphone button to speak 🎤');
+}
+
+// ── Permission modal ───────────────────────────────────────────────────────
+function showPermModal() {
+  let steps = '';
+  if (isIOS) {
+    steps = `1. Open iPhone <b>Settings</b><br>2. Tap <b>Privacy & Security</b><br>3. Tap <b>Microphone</b><br>4. Turn on <b>Safari</b><br>5. Come back and try again`;
+  } else if (isAndroid) {
+    steps = `1. Tap the <b>lock icon</b> in your browser address bar<br>2. Tap <b>Permissions</b><br>3. Enable <b>Microphone</b><br>4. Reload the page and try again`;
+  } else {
+    steps = `1. Click the <b>lock icon</b> in your browser address bar<br>2. Set <b>Microphone</b> to Allow<br>3. Reload the page and try again`;
+  }
+  document.getElementById('permSteps').innerHTML = steps;
+  document.getElementById('permModal').classList.add('visible');
+}
+function closeModal() { document.getElementById('permModal').classList.remove('visible'); }
+
+// ── Physical keyboard ──────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (/^[A-Za-z]$/.test(e.key)) pressLetter(e.key.toUpperCase());
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  speak('Welcome to Easy Text. Press the microphone button to speak your message.');
+});
+</script>
+</body>
+</html>
